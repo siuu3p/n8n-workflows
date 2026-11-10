@@ -1,0 +1,861 @@
+{
+  "name": "Lead Intake Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Form Submission",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name"
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Phone"
+            },
+            {
+              "fieldLabel": "Company"
+            },
+            {
+              "fieldLabel": "Service",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Data Entry"
+                  },
+                  {
+                    "option": "Admin Support"
+                  },
+                  {
+                    "option": "Workflow Automation"
+                  },
+                  {
+                    "option": "Google Sheets"
+                  },
+                  {
+                    "option": "Dashboard"
+                  },
+                  {
+                    "option": "Other"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Budget",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Under $500"
+                  },
+                  {
+                    "option": "$500 - $1000"
+                  },
+                  {
+                    "option": "$1000 - $5000"
+                  },
+                  {
+                    "option": "Over $5000"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Message"
+            },
+            {
+              "fieldLabel": "Status",
+              "defaultValue": "New"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        64
+      ],
+      "id": "f73761db-69a7-4268-8db1-900198eb1e22",
+      "name": "Lead Intake Form",
+      "webhookId": "45e11680-7c7d-4d8a-adfe-483a7b386bd2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ff094d8a-e911-4a2f-a8aa-23e5f33391ce",
+              "leftValue": "={{ $json.Email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        64
+      ],
+      "id": "149d71e1-9d63-4a85-b93d-cf671c2d1000",
+      "name": "Duplicate?",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f12e8652-a85a-410a-a755-2da45a137d01",
+              "name": "Lead ID",
+              "value": "={{ 'L-' + $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "02b352c5-1575-425d-88f1-196d84e64d2e",
+              "name": "Timestamp",
+              "value": "={{ $now.toFormat('yyyy-MM-dd HH:mm') }}",
+              "type": "string"
+            },
+            {
+              "id": "0889371d-1583-4f6f-8684-93448e23d563",
+              "name": "Name",
+              "value": "={{ $json.Name.trim().replace(/\\s+/g, ' ').toLowerCase().replace(/\\b\\w/g, c => c.toUpperCase()) }}",
+              "type": "string"
+            },
+            {
+              "id": "77e6b983-7181-4b14-9aee-df1571cc9a81",
+              "name": "Email",
+              "value": "={{ $json.Email.trim().toLowerCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "8f641ee0-5548-4353-90c8-c68676848aba",
+              "name": "Phone",
+              "value": "={{ ($json.Phone || '').replace(/[^\\d+]/g, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "f51225f6-a231-403a-9347-1e52b6746e04",
+              "name": "Company",
+              "value": "={{ ($json.Company || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "326df237-de05-4fba-9f6e-82229dd6fc53",
+              "name": "Service",
+              "value": "={{ $json.Service }}",
+              "type": "string"
+            },
+            {
+              "id": "0ab9ff03-3d2a-438b-99f5-2a05e0564e75",
+              "name": "Budget",
+              "value": "={{ $json.Budget }}",
+              "type": "string"
+            },
+            {
+              "id": "e4f7fcca-fff8-46c1-9f36-87d3aaa9d9f6",
+              "name": "Message",
+              "value": "={{ ($json.Message || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "3e3ea585-9ed5-4988-9647-7eae7dbbc582",
+              "name": "Status",
+              "value": "New",
+              "type": "string"
+            },
+            {
+              "id": "9534fa2e-ca3f-4824-9d27-c1a121a3d60a",
+              "name": "Priority",
+              "value": "={{ ['$1000 - $5000', 'Over $5000'].includes($json.Budget) ? 'High' : 'Normal' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        64
+      ],
+      "id": "a245d64e-866a-45ae-8948-06aa95c1ffb8",
+      "name": "Clean Lead Data"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU",
+          "mode": "list",
+          "cachedResultName": "Lead Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Email",
+              "lookupValue": "={{ $json.Email }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        64
+      ],
+      "id": "5e564f5e-d3d1-4b3e-b1fb-8ecfea1d92f8",
+      "name": "Find Existing Email",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DLmc1kltpMaFgGwg",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU",
+          "mode": "list",
+          "cachedResultName": "Lead Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $('Clean Lead Data').item.json.Timestamp }}",
+            "Lead ID": "={{ $('Clean Lead Data').item.json['Lead ID'] }}",
+            "Name": "={{ $('Clean Lead Data').item.json.Name }}",
+            "Email": "={{ $('Clean Lead Data').item.json.Email }}",
+            "Phone": "={{ $('Clean Lead Data').item.json.Phone }}",
+            "Company": "={{ $('Clean Lead Data').item.json.Company }}",
+            "Service": "={{ $('Clean Lead Data').item.json.Service }}",
+            "Budget": "={{ $('Clean Lead Data').item.json.Budget }}",
+            "Message": "={{ $('Clean Lead Data').item.json.Message }}",
+            "Priority": "={{ $('Clean Lead Data').item.json.Priority }}",
+            "Status": "={{ $('Clean Lead Data').item.json.Status }}",
+            "Duplicate?": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Duplicate?",
+              "displayName": "Duplicate?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        -32
+      ],
+      "id": "9ddde44f-2f6f-4adc-9cd5-ed9d545a1542",
+      "name": "Log Duplicate",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DLmc1kltpMaFgGwg",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU",
+          "mode": "list",
+          "cachedResultName": "Lead Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vYfltlkDyFOlY_1kGAJwZwfw63ax3UrD7utWsa2FgdU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $('Clean Lead Data').item.json.Timestamp }}",
+            "Lead ID": "={{ $('Clean Lead Data').item.json['Lead ID'] }}",
+            "Name": "={{ $('Clean Lead Data').item.json.Name }}",
+            "Email": "={{ $('Clean Lead Data').item.json.Email }}",
+            "Phone": "={{ $('Clean Lead Data').item.json.Phone }}",
+            "Company": "={{ $('Clean Lead Data').item.json.Company }}",
+            "Service": "={{ $('Clean Lead Data').item.json.Service }}",
+            "Budget": "={{ $('Clean Lead Data').item.json.Budget }}",
+            "Message": "={{ $('Clean Lead Data').item.json.Message }}",
+            "Priority": "={{ $('Clean Lead Data').item.json.Priority }}",
+            "Status": "={{ $('Clean Lead Data').item.json.Status }}",
+            "Duplicate?": "No"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Duplicate?",
+              "displayName": "Duplicate?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        160
+      ],
+      "id": "63144c07-96fb-4641-9e67-635b5b2d2fa7",
+      "name": "Log New Lead",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DLmc1kltpMaFgGwg",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "41478edb-176c-80c7-bcb4-daf781fb86a8",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://app.notion.com/p/41478edb176c80c7bcb4daf781fb86a8"
+        },
+        "title": "={{ $('Clean Lead Data').item.json.Name }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Lead ID|rich_text",
+              "textContent": "={{ $('Clean Lead Data').item.json['Lead ID'] }}"
+            },
+            {
+              "key": "Email|email",
+              "emailValue": "={{ $('Clean Lead Data').item.json.Email }}"
+            },
+            {
+              "key": "Phone|phone_number",
+              "phoneValue": "={{ String($('Clean Lead Data').item.json.Phone) }}"
+            },
+            {
+              "key": "Company|rich_text",
+              "textContent": "={{ $('Clean Lead Data').item.json.Company }}"
+            },
+            {
+              "key": "Service|select",
+              "selectValue": "={{ $('Clean Lead Data').item.json.Service }}"
+            },
+            {
+              "key": "Budget|select",
+              "selectValue": "={{ $('Clean Lead Data').item.json.Budget }}"
+            },
+            {
+              "key": "Priority|select",
+              "selectValue": "={{ $('Clean Lead Data').item.json.Priority }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "={{ $('Clean Lead Data').item.json.Status }}"
+            },
+            {
+              "key": "Message|rich_text",
+              "textContent": "={{ $('Clean Lead Data').item.json.Message }}"
+            },
+            {
+              "key": "Submitted|date",
+              "date": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "933b7fc2-9f91-4d1d-90ed-6f22a8b49d9a",
+      "name": "Create Notion Lead",
+      "credentials": {
+        "notionApi": {
+          "id": "LWVqH1XcvcsLSccF",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Clean Lead Data').item.json.Email }}",
+        "subject": "=Thanks for reaching out, {{ $('Clean Lead Data').item.json.Name }}",
+        "emailType": "text",
+        "message": "We thank you for showing your interest! We will get back to you after 3-5 business days.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        160
+      ],
+      "id": "129bafa0-3dd1-4108-92d4-803404e7baf9",
+      "name": "Send Auto-Reply",
+      "webhookId": "60a06481-6673-468b-84fb-aa2484e30bf3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7FHHFxJv4xesBIM9",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "813c73be-e014-4ffe-91df-1f0d38d607dd",
+              "leftValue": "={{ $('Clean Lead Data').item.json.Priority }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1568,
+        160
+      ],
+      "id": "2e75b39a-9139-4653-b447-e0d9abae850e",
+      "name": "Is High Priority?"
+    },
+    {
+      "parameters": {
+        "sendTo": "dldionisio03@gmail.com",
+        "subject": "=New HIGH lead: {{ $('Clean Lead Data').item.json.Name }}",
+        "message": "=<p><b>New high-priority lead</b></p>\n<p>Name: {{ $('Clean Lead Data').item.json.Name }}<br>\nCompany: {{ $('Clean Lead Data').item.json.Company }}<br>\nEmail: {{ $('Clean Lead Data').item.json.Email }}<br>\nService: {{ $('Clean Lead Data').item.json.Service }}<br>\nBudget: {{ $('Clean Lead Data').item.json.Budget }}<br>\nMessage: {{ $('Clean Lead Data').item.json.Message }}</p>\n<p><a href=\"{{ $('Create Notion Lead').item.json.url }}\">Open in Notion</a></p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        160
+      ],
+      "id": "583d186d-79a7-477c-8a77-d57cc6f4aac9",
+      "name": "Alert Owner (High Priority)",
+      "webhookId": "74ce9294-8b5e-4a5a-b221-1ccccaeb4517",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7FHHFxJv4xesBIM9",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Lead Intake Form": {
+      "main": [
+        [
+          {
+            "node": "Clean Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Log Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log New Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Find Existing Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Existing Email": {
+      "main": [
+        [
+          {
+            "node": "Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log New Lead": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Lead": {
+      "main": [
+        [
+          {
+            "node": "Send Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Auto-Reply": {
+      "main": [
+        [
+          {
+            "node": "Is High Priority?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is High Priority?": {
+      "main": [
+        [
+          {
+            "node": "Alert Owner (High Priority)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Manila",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timeSavedPerExecution": 5,
+    "errorWorkflow": "n7vlZqhO4qKXSABD"
+  },
+  "versionId": "8ecc146e-5f70-4693-a484-627f86ad5fe7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cc598d27ceb13d5694e6ab9d824022ddaf2c1185af8b6c6b3beda64fa4987df6"
+  },
+  "nodeGroups": [],
+  "id": "VYjY2pA33eZUDDQk",
+  "tags": []
+}
