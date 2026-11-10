@@ -67,10 +67,6 @@
             },
             {
               "fieldLabel": "Message"
-            },
-            {
-              "fieldLabel": "Status",
-              "defaultValue": "New"
             }
           ]
         },
@@ -850,7 +846,7 @@
     "timeSavedPerExecution": 5,
     "errorWorkflow": "n7vlZqhO4qKXSABD"
   },
-  "versionId": "8ecc146e-5f70-4693-a484-627f86ad5fe7",
+  "versionId": "5017480f-dd7f-4ab1-abd8-f01d2cde846f",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "cc598d27ceb13d5694e6ab9d824022ddaf2c1185af8b6c6b3beda64fa4987df6"
