@@ -1,0 +1,429 @@
+{
+  "name": "Competitive Pricing Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "c937797e-01de-4392-bb91-8bb56c8defc7",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1920,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Competitors to monitor. Edit this list to add/remove competitors.\nconst competitors = [\n  { name: 'Acme Corp', url: 'https://acme.example.com/pricing' },\n  { name: 'Globex', url: 'https://globex.example.com/pricing' },\n];\nreturn competitors.map((c) => ({ json: c }));"
+      },
+      "id": "a991ca21-f0fb-483c-9085-d57b9667dc3d",
+      "name": "Build Competitor List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1696,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "html"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "1f515a1b-40d3-4790-9158-42925d0412d3",
+      "name": "Fetch Pricing HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1472,
+        96
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract all pricing plans from the following competitor pricing page text.\nCompetitor: {{ $('Build Competitor List').item.json.name }}\nFor each plan return: name, numeric price (null if custom/contact sales), currency, billing period, and a list of features. If the page has monthly and annual prices, use the monthly price. If the page text is empty or contains no pricing, return an empty plans array.\n\nPage text:\n{{ $json.html }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "dab25d3f-d4b9-4a61-94c6-210874290847",
+      "name": "Extract Pricing Plans",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1024,
+        96
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "378f8849-6f45-420e-84bf-4c78312092fb",
+      "name": "OpenAI Extractor",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1008,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\": \"object\", \"properties\": {\"competitor\": {\"type\": \"string\"}, \"plans\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}, \"price\": {\"type\": [\"number\", \"null\"], \"description\": \"Numeric price, null if custom/contact sales\"}, \"currency\": {\"type\": \"string\"}, \"billingPeriod\": {\"type\": \"string\", \"description\": \"e.g. monthly, annual\"}, \"features\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"name\"]}}}, \"required\": [\"competitor\", \"plans\"]}"
+      },
+      "id": "0636a16c-42ac-46be-87f6-3584576372c1",
+      "name": "Pricing Plans Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(json_agg(json_build_object(\n  'plan_name', plan_name, 'price', price, 'currency', currency,\n  'billing_period', billing_period, 'features', features)), '[]'::json) AS baseline\nFROM competitor_pricing\nWHERE competitor = $1;",
+        "options": {
+          "queryReplacement": "={{ [ $('Build Competitor List').item.json.name ] }}"
+        }
+      },
+      "id": "f5041c5b-9860-4f6c-8cd7-5ae7d254a42d",
+      "name": "Fetch Baseline Pricing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -784,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const extracted = $('Extract Pricing Plans').item.json.output || {};\nconst competitor = $('Build Competitor List').item.json.name;\nconst currentPlans = Array.isArray(extracted.plans) ? extracted.plans : [];\nconst baseline = Array.isArray($json.baseline) ? $json.baseline : [];\n\nconst norm = (s) => String(s == null ? \"\" : s).trim().toLowerCase();\nconst toNum = (v) => {\n  if (v == null) return null;\n  const n = parseFloat(String(v).replace(/[^0-9.]/g, \"\"));\n  return isNaN(n) ? null : n;\n};\n\n// If the scrape or extraction failed, don't report every baseline plan as \"removed\".\nif (currentPlans.length === 0) {\n  return { json: { competitor, hasChanges: false, changeCount: 0, changes: [], currentPlanCount: 0,\n    baselinePlanCount: baseline.length, currentPlans, skipped: 'No plans extracted (fetch or extraction failed)' } };\n}\n\n// index baseline by plan name\nconst baseByName = {};\nfor (const b of baseline) {\n  const key = norm(b.plan_name || b.name || b.plan);\n  baseByName[key] = b;\n}\nconst curByName = {};\nfor (const p of currentPlans) curByName[norm(p.name)] = p;\n\nconst changes = [];\n\n// price changes + new plans\nfor (const p of currentPlans) {\n  const key = norm(p.name);\n  const b = baseByName[key];\n  const curPrice = toNum(p.price);\n  if (!b) {\n    changes.push({ type: 'new_plan', plan: p.name, detail: `New plan \"${p.name}\" at ${curPrice == null ? 'custom pricing' : curPrice}` });\n    continue;\n  }\n  const basePrice = toNum(b.price);\n  if (curPrice != null && basePrice != null && curPrice !== basePrice) {\n    const dir = curPrice > basePrice ? 'increase' : 'decrease';\n    const pct = basePrice === 0 ? null : Math.round(((curPrice - basePrice) / basePrice) * 1000) / 10;\n    changes.push({ type: 'price_' + dir, plan: p.name, from: basePrice, to: curPrice, pctChange: pct, detail: `${p.name}: ${basePrice} -> ${curPrice}${pct == null ? '' : ' (' + (pct > 0 ? '+' : '') + pct + '%)'}` });\n  }\n}\n\n// removed plans\nfor (const b of baseline) {\n  const key = norm(b.plan_name || b.name || b.plan);\n  if (!curByName[key]) {\n    changes.push({ type: 'removed_plan', plan: b.plan_name || b.name || b.plan, detail: `Plan \"${b.plan_name || b.name || b.plan}\" no longer listed` });\n  }\n}\n\nreturn {\n  json: {\n    competitor,\n    hasChanges: changes.length > 0,\n    changeCount: changes.length,\n    changes,\n    currentPlanCount: currentPlans.length,\n    baselinePlanCount: baseline.length,\n    currentPlans,\n  },\n};"
+      },
+      "id": "29c72668-440c-4c07-ad89-b5919ac4ceca",
+      "name": "Compare vs Baseline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all()\n  .map((i) => i.json)\n  .filter((r) => r && Object.keys(r).length > 0 && r.hasChanges);\n\nif (rows.length === 0) return [];\n\nconst today = $now.toFormat('yyyy-LL-dd');\nconst lines = [];\nconst slackLines = [];\nfor (const r of rows) {\n  lines.push(`\\n=== ${r.competitor} (${r.changeCount} change(s)) ===`);\n  slackLines.push(`*${r.competitor}* \u2014 ${r.changeCount} change(s)`);\n  for (const c of r.changes) {\n    lines.push(`  \u2022 [${c.type}] ${c.detail}`);\n    slackLines.push(`   \u2022 [${c.type}] ${c.detail}`);\n  }\n}\n\nconst totalChanges = rows.reduce((s, r) => s + r.changeCount, 0);\nconst subject = `Competitive Pricing Alert \u2014 ${rows.length} competitor(s), ${totalChanges} change(s) [${today}]`;\n\nconst reportText = `Competitive Intelligence \u2014 Pricing Positioning Report\\nDate: ${today}\\nCompetitors with changes: ${rows.length}\\nTotal changes: ${totalChanges}\\n${lines.join('\\n')}`;\nconst slackText = `:mag: *Competitive Pricing Alert* (${today})\\n${rows.length} competitor(s), ${totalChanges} change(s)\\n\\n${slackLines.join('\\n')}`;\n\nreturn [{ json: { subject, reportText, slackText, competitorsChanged: rows.length, totalChanges } }];"
+      },
+      "id": "dd546c95-8e4e-4d56-9cf4-ba902fd8a234",
+      "name": "Build Change Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-changes",
+              "leftValue": "={{ $json.totalChanges }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5d62f8a1-656b-440d-a40a-05e3e1507f6a",
+      "name": "Any Changes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -112,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#competitive-intel"
+        },
+        "text": "={{ $json.slackText }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "a2da919f-2da7-4fad-872a-7c26956fea48",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        112,
+        0
+      ],
+      "webhookId": "4e8e3852-ea08-4a88-854c-95b5ffd7b3f6",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "sendTo": "<__PLACEHOLDER_VALUE__Recipient email address__>",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.reportText }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7f83ed24-be93-49d7-8882-cf899a3b513d",
+      "name": "Send Email Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        192
+      ],
+      "webhookId": "8c2a8aad-b4bc-4fd7-a813-6e66de41491a",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Turn raw HTML into compact text so the LLM sees the pricing content, not scripts and markup.\nconst raw = typeof $json.html === 'string' ? $json.html : '';\nconst text = raw\n  .replace(/<!--[\\s\\S]*?-->/g, ' ')\n  .replace(/<(script|style|noscript|svg|head|iframe)[\\s\\S]*?<\\/\\1>/gi, ' ')\n  .replace(/<\\/(p|div|li|tr|h[1-6]|section|article|br)>/gi, '\\n')\n  .replace(/<br\\s*\\/?>/gi, '\\n')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&#36;|&dollar;/g, '$')\n  .replace(/&euro;/g, '\u20ac')\n  .replace(/&pound;/g, '\u00a3')\n  .replace(/[ \\t]+/g, ' ')\n  .replace(/\\n\\s*\\n+/g, '\\n')\n  .trim();\n\nreturn {\n  json: {\n    competitor: $('Build Competitor List').item.json.name,\n    url: $('Build Competitor List').item.json.url,\n    fetchError: $json.error ? String($json.error.message || $json.error) : null,\n    html: text.slice(0, 40000),\n  },\n};"
+      },
+      "id": "b8a2f1d4-3c6e-4f0a-9d7b-5e1c2a3f4b60",
+      "name": "Clean Page Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Replace the stored baseline with today's plans (skipped when nothing was extracted).\nWITH del AS (\n  DELETE FROM competitor_pricing\n  WHERE competitor = $1 AND jsonb_array_length($2::jsonb) > 0\n)\nINSERT INTO competitor_pricing (competitor, plan_name, price, currency, billing_period, features)\nSELECT $1,\n       p->>'name',\n       NULLIF(p->>'price', '')::numeric,\n       p->>'currency',\n       p->>'billingPeriod',\n       COALESCE(p->'features', '[]'::jsonb)\nFROM jsonb_array_elements($2::jsonb) AS p;",
+        "options": {
+          "queryReplacement": "={{ [ $json.competitor, JSON.stringify($json.currentPlans || []) ] }}"
+        }
+      },
+      "id": "e3d9c7a1-8b4f-4e2a-b6c5-1f0a9d8e7c32",
+      "name": "Update Baseline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -336,
+        288
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Extractor": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Pricing Plans",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pricing Plans Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Extract Pricing Plans",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare vs Baseline": {
+      "main": [
+        [
+          {
+            "node": "Build Change Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Baseline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Change Report": {
+      "main": [
+        [
+          {
+            "node": "Any Changes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Changes?": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Build Competitor List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Competitor List": {
+      "main": [
+        [
+          {
+            "node": "Fetch Pricing HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Pricing HTML": {
+      "main": [
+        [
+          {
+            "node": "Clean Page Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Page Text": {
+      "main": [
+        [
+          {
+            "node": "Extract Pricing Plans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Pricing Plans": {
+      "main": [
+        [
+          {
+            "node": "Fetch Baseline Pricing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Baseline Pricing": {
+      "main": [
+        [
+          {
+            "node": "Compare vs Baseline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b6392784-998d-4d0a-a026-10d9de028bcc",
+  "meta": {
+    "instanceId": "cc598d27ceb13d5694e6ab9d824022ddaf2c1185af8b6c6b3beda64fa4987df6"
+  },
+  "nodeGroups": [],
+  "id": "XcMweCF5RyqVP7M6",
+  "tags": []
+}
