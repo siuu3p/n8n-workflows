@@ -4,6 +4,10 @@ An n8n workflow that takes a lead from a web form, cleans the data, checks for d
 
 Estimated time saved: about 5 minutes per lead.
 
+![The workflow on the n8n canvas](workflow.jpg)
+
+*Rendered from the exported workflow file. The warning icons only mean no credentials are connected in this preview.*
+
 ## Flow
 
 ```

@@ -2,6 +2,10 @@
 
 An n8n workflow that checks competitor pricing pages every morning, uses OpenAI to extract their plans, compares them to the last saved snapshot in Postgres, and sends a Slack message and an email when something changed.
 
+![The workflow on the n8n canvas](workflow.jpg)
+
+*Rendered from the exported workflow file. The warning icons only mean no credentials are connected in this preview.*
+
 ## Flow
 
 ```

@@ -4,6 +4,10 @@ An n8n workflow that reads new support emails, looks up answers in a Notion know
 
 Nothing is sent to customers automatically. Every reply ends up as a Gmail **draft** that you review and send.
 
+![The workflow on the n8n canvas](workflow.jpg)
+
+*Rendered from the exported workflow file. The warning icons only mean no credentials are connected in this preview.*
+
 ## Flow
 
 ```
