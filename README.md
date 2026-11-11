@@ -10,6 +10,6 @@ Repository to store my n8n workflows.
 
 ## Credits
 
-Built by [Dennis Dionisio](https://github.com/siuu3p) with AI assistance. I designed the workflows, set up the integrations, and tested them in n8n.
+Built by [siuu3p](https://github.com/siuu3p) with AI assistance. I designed the workflows, set up the integrations, and tested them in n8n.
 
 Contact: [LinkedIn](https://www.linkedin.com/in/dldionisio)
